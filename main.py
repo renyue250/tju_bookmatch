@@ -39,7 +39,6 @@ def main():
     cmd = sys.argv[1].lower()
 
     if cmd == "start":
-        # 可以接受第二个参数作为间隔分钟数，默认5
         interval = 5
         if len(sys.argv) >= 3:
             try:
@@ -47,6 +46,30 @@ def main():
             except ValueError:
                 print("间隔时间必须为整数（分钟），使用默认值5分钟")
         start_scheduler(interval)
+
+    elif cmd == "add":
+        # 用法: python main.py add <buy/sell> <书名> <联系方式>
+        if len(sys.argv) < 5:
+            print("用法: python main.py add <buy/sell> <书名> <联系方式>")
+            print("示例: python main.py add buy '高等数学' '微信: zhangsan'")
+            return
+        demand_type = sys.argv[2]
+        book_name = sys.argv[3]
+        contact = sys.argv[4]
+        if demand_type not in ["buy", "sell"]:
+            print("类型必须是 buy 或 sell")
+            return
+        demand_id = db.add_demand(demand_type, book_name, contact)
+        print(f"✅ 需求已添加！ID: {demand_id}")
+
+        # 添加后立即尝试运行一次匹配（让用户不用等5分钟）
+        print("正在尝试快速匹配...")
+        from matcher import run_matching
+        matches = run_matching()
+        if matches:
+            print(f"🎉 匹配成功！发现 {len(matches)} 个新匹配，已发送通知。")
+        else:
+            print("⏳ 未找到匹配，已存入数据库，等待下次定时扫描。")
 
     elif cmd == "test":
         test_llm()
