@@ -3,7 +3,7 @@
 
 import db
 from llm_client import is_same_book
-
+import notifier
 
 def run_matching():
     """
@@ -45,7 +45,9 @@ def run_matching():
                     "sell_contact": sell["contact"]
                 }
                 new_matches.append(match_record)
-                
+                # 发送通知
+                notifier.notify_match(match_record)
+
                 # 更新数据库状态（标记为已匹配）
                 db.mark_as_matched(buy["id"])
                 db.mark_as_matched(sell["id"])
