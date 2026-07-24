@@ -104,42 +104,16 @@ def is_same_book(book1: str, book2: str) -> bool:
 
 def generate_match_message(buy_book: str, sell_book: str, contact: str) -> str:
     """
-    使用大模型生成有温度的匹配通知文案
-    
-    参数:
-        buy_book: 买家想要的书名
-        sell_book: 卖家出售的书名
-        contact: 卖家的联系方式
-    
-    返回:
-        个性化的通知消息
+    使用大模型生成有温度的匹配通知文案（优化版）
     """
-    prompt = f"""
-你是一个天津大学校园助手，请为以下二手书匹配结果生成一条温馨、友好的通知消息。
-
-买家想买：{buy_book}
-卖家想卖：{sell_book}
-卖家联系方式：{contact}
-
-要求：
-1. 语气亲切，像同学之间的交流
-2. 包含书名和联系方式
-3. 开头加一个📚表情
-4. 结尾加上"—— 天大二手书智能匹配助手"
-5. 总字数不超过100字
-"""
+    # 极简 prompt，只要求生成一句话，降低模型处理负担
+    prompt = f"买家求购《{buy_book}》，卖家出售《{sell_book}》，联系方式：{contact}。请用一句友好、温暖的话通知买家，字数不超过30字。"
     
-    message = call_tju_llm(prompt, temperature=0.7)
+    message = call_tju_llm(prompt, temperature=0.3)  # 降低 temperature
     
-    # 如果生成失败，使用备用模板
     if not message:
-        message = f"""📚 二手书匹配成功！
-
-您求购的《{buy_book}》有人出售！
-卖家联系方式：{contact}
-
-请尽快联系，祝交易愉快 😊
-—— 天大二手书智能匹配助手"""
+        # 备用模板
+        message = f"📚 二手书匹配成功！\n\n您求购的《{buy_book}》有人出售！\n卖家联系方式：{contact}\n\n请尽快联系，祝交易愉快 😊\n—— 天大二手书智能匹配助手"
     
     return message
 
