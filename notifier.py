@@ -6,7 +6,7 @@ import requests
 from email.mime.text import MIMEText
 from email.header import Header
 from config import WECOM_WEBHOOK_URL, SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD
-from llm_client import generate_match_message
+from llm_client import call_tju_llm  # 改为导入 call_tju_llm
 
 
 def send_wecom(content):
@@ -51,7 +51,6 @@ def send_email(to_addr, subject, content):
         msg["From"] = SMTP_USER
         msg["To"] = to_addr
 
-        # 使用 TLS 加密连接（大多数服务器要求）
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
         server.starttls()
         server.login(SMTP_USER, SMTP_PASSWORD)
@@ -65,70 +64,30 @@ def send_email(to_addr, subject, content):
 
 
 def notify_match(match_record):
-    """
-    发送匹配成功通知（组合了文案生成和发送）
-    match_record = {
-        'buy_contact': '...',
-        'sell_contact': '...',
-        'book_name': '...'
-    }
-    返回: bool 是否至少一种方式发送成功
-    """
     book = match_record["book_name"]
     buyer = match_record["buy_contact"]
     seller = match_record["sell_contact"]
 
-    # 1. 生成通知文案（使用大模型，如果失败则使用备用模板）
-    message = generate_match_message(book, book, seller)
-    if not message:
-        message = f"""📚 二手书匹配成功！
+    # 买家版：只显示卖家联系方式
+    buyer_msg = f"📚 您求购的《{book}》有人出售！\n卖家联系方式：{seller}\n\n请尽快联系，祝交易愉快 😊"
 
-您求购的《{book}》有人出售！
-卖家联系方式：{seller}
+    # 卖家版：只显示买家联系方式
+    seller_msg = f"📚 您的《{book}》有买家求购！\n买家联系方式：{buyer}\n\n请尽快联系，祝交易愉快 😊"
 
-请尽快联系，祝交易愉快 😊
-—— 天大二手书智能匹配助手"""
+    print(f"[通知模拟] 买家 {buyer} 应收到：\n{buyer_msg}")
+    print(f"[通知模拟] 卖家 {seller} 应收到：\n{seller_msg}")
 
-    # 2. 发送给买家（根据联系方式类型选择通道）
-    # 简单起见，我们假设联系方式是邮箱或手机号，先统一用邮件
-    # 若联系人是邮箱，则发送邮件；若是手机号，则可能通过短信（暂不支持），这里演示用邮件
-    # 你也可以根据实际需要添加更多判断
-
-    success = False
-
-    # 尝试邮件（如果联系方式看起来像邮箱）
-    if "@" in buyer:
-        if send_email(buyer, f"📚 二手书匹配成功：《{book}》", message):
-            success = True
-    else:
-        # 对于手机号或微信号，我们暂时用企业微信发送（如果配置了）
-        if WECOM_WEBHOOK_URL:
-            # 将消息发送到企业微信（这里发给群，但更好的做法是私聊，需要企业微信应用）
-            # 这里简化：在群内@所有人或发送公共消息
-            full_msg = f"📚 匹配成功！\n买家：{buyer}\n卖家：{seller}\n书籍：《{book}》\n请双方自行联系。"
-            if send_wecom(full_msg):
-                success = True
-        else:
-            # 无通知渠道时，至少打印到控制台（用于演示）
-            print(f"\n[通知模拟] 买家 {buyer} 应收到：\n{message}\n")
-            success = True
-
-    # 也可以通知卖家（可选）
-    seller_msg = f"📚 您的《{book}》有买家求购！\n买家联系方式：{buyer}\n请尽快联系。"
-    if "@" in seller:
-        send_email(seller, f"📚 您的书籍《{book}》已被求购", seller_msg)
-    else:
-        print(f"[通知模拟] 卖家 {seller} 应收到：{seller_msg}\n")
-
-    return success
+    return buyer_msg, seller_msg
 
 
-# 简单的自测代码（不使用数据库，直接调用）
+# 简单的自测代码
 if __name__ == "__main__":
-    # 测试通知模块
     test_match = {
         "buy_contact": "test_buyer@tju.edu.cn",
         "sell_contact": "test_seller@tju.edu.cn",
         "book_name": "高等数学"
     }
-    notify_match(test_match)
+    buyer_msg, seller_msg = notify_match(test_match)
+    print("\n=== 返回结果 ===")
+    print(f"买家版:\n{buyer_msg}")
+    print(f"卖家版:\n{seller_msg}")

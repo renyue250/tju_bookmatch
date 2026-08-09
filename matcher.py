@@ -6,37 +6,26 @@ from llm_client import is_same_book
 import notifier
 
 def run_matching():
-    """
-    执行一轮匹配扫描（从数据库读取未匹配需求）
-    返回匹配结果列表，并更新数据库状态
-    """
-    # 1. 从数据库获取所有未匹配的需求
     all_demands = db.get_unmatched_demands()
-    
     if len(all_demands) < 2:
-        print("[匹配] 未匹配需求不足，跳过")
         return []
-    
-    # 2. 分离买和卖
     buy_list = [d for d in all_demands if d["type"] == "buy"]
     sell_list = [d for d in all_demands if d["type"] == "sell"]
-    
     if not buy_list or not sell_list:
-        print("[匹配] 只有单边需求，等待匹配")
         return []
-    
-    print(f"[匹配] 当前有 {len(buy_list)} 条买方需求，{len(sell_list)} 条卖方需求")
-    
-    # 3. 执行匹配逻辑
+
     new_matches = []
-    
+    matched_seller_ids = set()  #  新增：记录本轮已匹配的卖方ID
+
     for buy in buy_list:
         for sell in sell_list:
-            # 调用大模型判断书名是否匹配
+            #  新增：跳过已匹配的卖方
+            if sell["id"] in matched_seller_ids:
+                continue
+
             if is_same_book(buy["book_name"], sell["book_name"]):
                 print(f"[匹配] ✅ 匹配成功！买家: {buy['book_name']} ↔ 卖家: {sell['book_name']}")
                 
-                # 记录匹配结果
                 match_record = {
                     "buy_id": buy["id"],
                     "sell_id": sell["id"],
@@ -45,17 +34,14 @@ def run_matching():
                     "sell_contact": sell["contact"]
                 }
                 new_matches.append(match_record)
-                # 发送通知
                 notifier.notify_match(match_record)
 
-                # 更新数据库状态（标记为已匹配）
                 db.mark_as_matched(buy["id"])
                 db.mark_as_matched(sell["id"])
-                
-                # 一个买需求匹配一个卖需求后，跳出内层循环
+
+                matched_seller_ids.add(sell["id"])  # 记录已匹配的卖方
                 break
-    
-    print(f"[匹配] 本轮共发现 {len(new_matches)} 个新匹配")
+
     return new_matches
 
 
